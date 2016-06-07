@@ -35,8 +35,13 @@ device="$1"
 grep ${device} /etc/mtab >/dev/null && \
   die "Device '${device}' contains mounted partitions"
 
+# TODO: Autogenerate an image file, using dd and with a timestamp
+# check for image file
+img="$2"
+[ -e "${img}" ] || die "Image file '${img}' not found"
+
 # check root filesystem
-rootTar="$2"
+rootTar="$3"
 [ -e "${rootTar}" ] || die "Root filesystem tarball '${rootTar}' not found"
 
 # default environment
@@ -60,18 +65,20 @@ ${CROSS_COMPILE}gcc --version >/dev/null 2>&1 || \
 ${CROSS_COMPILE}objcopy --version >/dev/null 2>&1 || \
   die "No ${CROSS_COMPILE}objcopy, set \$CROSS_COMPILE"
 
-# partition SD/MMC card
-sudo sfdisk ${device} -L << EOF
+# partition image file
+sudo sfdisk ${img} -L << EOF
 2M,,L
 EOF
 
+loop_device=$(losetup --show -f -P ${img})
+
 # create ext4 partition
-sudo mkfs.ext2 ${device}1
+sudo mkfs.ext2 ${loop_device}p1
 
 # mount ext4 partition
 sdMount=${tmpDir}/sd_mount
 mkdir ${sdMount}
-sudo mount ${device}1 ${sdMount}
+sudo mount ${loop_device}p1 ${sdMount}
 
 # clone u-boot
 ubootDir=$tmpDir/u-boot
@@ -82,8 +89,8 @@ pushd $ubootDir
   make distclean
   make ci20_mmc_config
   make -j${JOBS}
-  sudo dd if=spl/u-boot-spl.bin of=${device} obs=512 seek=1
-  sudo dd if=u-boot.img of=${device} obs=1K seek=14
+  sudo dd if=spl/u-boot-spl.bin of=${loop_device} obs=512 seek=1
+  sudo dd if=u-boot.img of=${loop_device} obs=1K seek=14
 popd
 
 # build & copy NAND u-boot
@@ -159,7 +166,9 @@ echo "flash_root${idx}=mw.l 0xb0010544 0x8000; echo All done :)" >>${envText}
 echo "U-boot environment:"
 cat ${envText}
 ${ubootDir}/tools/mkenvimage -s ${envSize} -o ${envBin} ${envText}
-sudo dd if=${envBin} of=${device} obs=1 seek=$((526 * 1024))
+sudo dd if=${envBin} of=${loop_device} obs=1 seek=$((526 * 1024))
+
+# TODO: dd the loop_device's contents to the SD card
 
 echo "SD contents:"
 ls -hl ${sdMount}/
