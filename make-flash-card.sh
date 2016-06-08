@@ -7,7 +7,7 @@
 # the ci20 NAND flash.
 #
 # Usage:
-#   ./make-flash-card.sh /dev/sdX /path/to/rootfs.tar.xz
+#   ./make-flash-card.sh /dev/sdX output.img /path/to/rootfs.tar
 #
 
 set -e
@@ -36,14 +36,14 @@ grep ${device} /etc/mtab >/dev/null && \
   die "Device '${device}' contains mounted partitions"
 
 img="$2"
-[ -z "${img}" ] || die "Please provide an image filename"
+[ ! -z "${img}" ] || die "Please provide an image filename"
 
 # check root filesystem
 rootTar="$3"
 [ -e "${rootTar}" ] || die "Root filesystem tarball '${rootTar}' not found"
 
 # default environment
-[ ! -z "${CROSS_COMPILE}" ] || export CROSS_COMPILE=mipsel-unknown-linux-gnu-
+[ ! -z "${CROSS_COMPILE}" ] || export CROSS_COMPILE=/home/hunt/code/ci20_other_files/Sourcery_CodeBench_Lite_for_MIPS_GNU_Linux/bin/mips-linux-gnu-
 [ ! -z "${UBOOT_REPO}" ] || UBOOT_REPO="https://github.com/MIPS/CI20_u-boot"
 [ ! -z "${UBOOT_BRANCH}" ] || UBOOT_BRANCH="ci20-v2013.10"
 
