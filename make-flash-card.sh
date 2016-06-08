@@ -35,10 +35,8 @@ device="$1"
 grep ${device} /etc/mtab >/dev/null && \
   die "Device '${device}' contains mounted partitions"
 
-# TODO: Autogenerate an image file, using dd and with a timestamp
-# check for image file
 img="$2"
-[ -e "${img}" ] || die "Image file '${img}' not found"
+[ -z "${img}" ] || die "Please provide an image filename"
 
 # check root filesystem
 rootTar="$3"
@@ -64,6 +62,9 @@ ${CROSS_COMPILE}gcc --version >/dev/null 2>&1 || \
   die "No ${CROSS_COMPILE}gcc, set \$CROSS_COMPILE"
 ${CROSS_COMPILE}objcopy --version >/dev/null 2>&1 || \
   die "No ${CROSS_COMPILE}objcopy, set \$CROSS_COMPILE"
+
+# TODO: Reduce the size of this
+dd if=/dev/zero of=${img} bs=1M count=4096
 
 # partition image file
 sudo sfdisk ${img} -L << EOF
@@ -168,7 +169,7 @@ cat ${envText}
 ${ubootDir}/tools/mkenvimage -s ${envSize} -o ${envBin} ${envText}
 sudo dd if=${envBin} of=${loop_device} obs=1 seek=$((526 * 1024))
 
-# TODO: dd the loop_device's contents to the SD card
+sudo dd if=${loop_device} of=${device}
 
 echo "SD contents:"
 ls -hl ${sdMount}/
